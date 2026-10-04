@@ -30,7 +30,7 @@ import requests
 from bs4 import BeautifulSoup
 
 # ---------------------------------------------------------------- EDIT ME
-CONTACT_EMAIL = "erica.szalkowski@gmail.com"   # put your real email here (sites see it)
+CONTACT_EMAIL = "you@example.com"   # put your real email here (sites see it)
 # -----------------------------------------------------------------------
 
 USER_AGENT = f"BoutiqueLeadVerifier/1.0 (portfolio demo; contact: {CONTACT_EMAIL})"
@@ -168,6 +168,9 @@ esquire esq cpa phd jr sr senior vice chief officer development company universi
 group design theory board partnerships press support menu directors operation accounting partner partners
 president founder executive manager associates foundation program youth city county state ceo cfo coo blue green
 brown purple red yellow orange gray grey white
+african american asian hispanic latino latina native korean japanese chinese irish italian mexican puerto rican
+jewish christian catholic first former current licensed retired professional amateur regional usa hall fame
+lady gentleman ladies men women girls boys veteran veterans army navy marine marines air force police
 """.split())
 
 NICK = {"mike": "michael", "chris": "christopher", "kate": "katherine", "katie": "katherine", "jen": "jennifer",
@@ -537,6 +540,29 @@ def segment_of(domain, text):
     return "Boutique"
 
 
+def people_from_pages(pages):
+    rank = {"owner": 3, "leader": 2, "staff": 1}
+    people = {}
+    for pg in pages:
+        for p in extract_people(pg["text"], pg["url"]):
+            cur = people.get(p["name"])
+            if not cur or rank[p["level"]] > rank[cur["level"]]:
+                people[p["name"]] = p
+    # "Marvin McDowell" vs "McDowell Marvin": keep the order whose first word stands alone more often
+    alltext = " ".join(pg["text"] for pg in pages).lower()
+    alone = lambda w: len(re.findall(r"(?<![a-z])" + re.escape(w.lower()) + r"(?![a-z])", alltext))
+    for name in list(people):
+        a, b = name.split(" ", 1)
+        rev = f"{b} {a}"
+        if rev in people and name in people:
+            loser = rev if alone(a) >= alone(b) else name
+            winner = name if loser == rev else rev
+            if rank[people[loser]["level"]] > rank[people[winner]["level"]]:
+                people[winner].update(level=people[loser]["level"], keyword=people[loser]["keyword"])
+            del people[loser]
+    return sorted(people.values(), key=lambda p: {"owner": 0, "leader": 1, "staff": 2}[p["level"]])[:20]
+
+
 def crawl(studio):
     site = studio["website"]
     source = "OpenStreetMap"
@@ -623,7 +649,7 @@ def crawl(studio):
         "segment": segment_of(root, alltext),
         "pages": pages,
         "emails": [{"email": e, "page": u} for e, u in sorted(emails)],
-        "people": sorted(people.values(), key=lambda p: {"owner": 0, "leader": 1, "staff": 2}[p["level"]])[:20],
+        "people": people_from_pages(pages),
         "tech": detect_tech(blobs, final),
     }
 
@@ -632,8 +658,16 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--wide", action="store_true", help="include the county ring")
     ap.add_argument("--limit", type=int, default=60, help="max studios to read")
-    ap.add_argument("--out", default="public/data/seed.json")
+    ap.add_argument("--reprocess", action="store_true",
+                    help="skip the web; re-run name detection on the saved pages and rewrite the data files")
     args = ap.parse_args()
+
+    if args.reprocess:
+        studios, dropped, meta = load_saved()
+        for s in studios:
+            s["crawl"]["people"] = people_from_pages(s["crawl"].get("pages", []))
+        write_data(studios, dropped, meta.get("area", "Baltimore"), meta.get("generated_at"))
+        return
 
     if CONTACT_EMAIL == "you@example.com":
         sys.exit("Open build_seed.py and set CONTACT_EMAIL near the top first.")
@@ -680,22 +714,63 @@ def main():
         time.sleep(1)
     studios = kept
 
-    out = {
-        "generated_at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
-        "area": "Baltimore metro" if args.wide else "Baltimore City",
-        "source": "OpenStreetMap contributors (ODbL) + studios' own public websites",
-        "studios": studios,
-        "dropped": [{"name": s["name"], "reason": s["crawl"]["status"]} for s in dropped],
-    }
-    with open(args.out, "w", encoding="utf-8") as f:
-        json.dump(out, f, ensure_ascii=False, indent=1)
-    read = len(studios)
-    owners = sum(1 for s in studios
-                 if any(p["level"] in ("owner", "leader") for p in s.get("crawl", {}).get("people", [])))
-    log(f"\nDone. Wrote {args.out}")
-    replaced = sum(1 for s in studios if "search" in s.get("crawl", {}).get("site_source", "").lower())
-    log(f"Indexed: {read} ({replaced} found by search after a dead link). Dropped (dead, squatted, or no site): {len(dropped)}.")
-    log(f"Studios with a named owner/lead: {owners}.")
+    write_data(studios, dropped, "Baltimore metro" if args.wide else "Baltimore City", None)
+
+
+DATA_DIR = "public/data"
+
+
+def safe_id(i):
+    return re.sub(r"[^a-z0-9-]+", "-", i.lower()).strip("-")
+
+
+def load_saved():
+    """Read the previous run: the new split files, or the old single seed.json."""
+    import glob
+    import os
+    old = os.path.join(DATA_DIR, "seed.json")
+    idx = os.path.join(DATA_DIR, "index.json")
+    if os.path.exists(idx):
+        meta = json.load(open(idx, encoding="utf-8"))
+        studios = []
+        for s in meta["studios"]:
+            full = json.load(open(os.path.join(DATA_DIR, "studios", s["file"] + ".json"), encoding="utf-8"))
+            studios.append(full)
+        return studios, meta.get("dropped", []), meta
+    if os.path.exists(old):
+        meta = json.load(open(old, encoding="utf-8"))
+        return [s for s in meta["studios"] if s.get("crawl", {}).get("status") == "read"], meta.get("dropped", []), meta
+    sys.exit("No saved data found. Run without --reprocess first.")
+
+
+def write_data(studios, dropped, area, generated_at):
+    """index.json is small (loaded on every check); each studio's page text lives in its own file."""
+    import os
+    os.makedirs(os.path.join(DATA_DIR, "studios"), exist_ok=True)
+    light = []
+    for s in studios:
+        fid = safe_id(s["id"])
+        with open(os.path.join(DATA_DIR, "studios", fid + ".json"), "w", encoding="utf-8") as f:
+            json.dump(s, f, ensure_ascii=False)
+        c = s["crawl"]
+        light.append({k: s.get(k, "") for k in ("id", "name", "category", "address", "phone", "website", "osm_url", "pinned")}
+                     | {"file": fid, "crawl": {k: c.get(k) for k in ("status", "domain", "site_url", "site_source", "health",
+                                                                    "segment", "crawled_at", "emails")}
+                                     | {"people": [{"name": p["name"], "level": p["level"], "keyword": p["keyword"]} for p in c.get("people", [])],
+                                        "tech": c.get("tech", [])}})
+    out = {"generated_at": generated_at or dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
+           "area": area, "source": "OpenStreetMap contributors (ODbL) + studios' own public websites",
+           "studios": light,
+           "dropped": [d if "reason" in d else {"name": d["name"], "reason": d["crawl"]["status"]} for d in dropped]}
+    with open(os.path.join(DATA_DIR, "index.json"), "w", encoding="utf-8") as f:
+        json.dump(out, f, ensure_ascii=False)
+    old = os.path.join(DATA_DIR, "seed.json")
+    if os.path.exists(old):
+        os.remove(old)
+    owners = sum(1 for s in studios if any(p["level"] in ("owner", "leader") for p in s["crawl"].get("people", [])))
+    size = os.path.getsize(os.path.join(DATA_DIR, "index.json")) // 1024
+    log(f"\nDone. Wrote {DATA_DIR}/index.json ({size} KB) and {len(studios)} files in {DATA_DIR}/studios/")
+    log(f"Indexed: {len(studios)}. Dropped (dead, squatted, or no site): {len(dropped)}. With a named owner/lead: {owners}.")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Boutique lead verifier</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🥋</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EDF0EE; --surface:#FFFFFF; --ink:#15252B; --muted:#55666B; --line:#CBD4D1; --soft:#E2E8E5;
+  --accent:#1D4E63; --accent-soft:#DCE8EE;
+  --ok:#1F6B45; --ok-soft:#DDEFE4; --mid:#85570A; --mid-soft:#F5E9D2; --no:#9A3832; --no-soft:#F4DEDC;
+  --mark:#F7E27A;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){
+  --paper:#111A1D; --surface:#182428; --ink:#E4ECEA; --muted:#9AABAF; --line:#2C3C41; --soft:#203034;
+  --accent:#8EC3DA; --accent-soft:#1E3640; --ok:#7ACB9C; --ok-soft:#173527; --mid:#E2B261; --mid-soft:#3A2D14;
+  --no:#E8928B; --no-soft:#3D2120; --mark:#6B5A12; } }
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 "Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif;font-variant-numeric:tabular-nums}
+a{color:var(--accent)}
+button,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1240px;margin:0 auto;padding:28px 20px 60px}
+header{display:flex;flex-wrap:wrap;gap:16px 32px;align-items:end;justify-content:space-between;margin-bottom:22px}
+h1{font-size:1.75rem;line-height:1.15;margin:0;font-weight:700;letter-spacing:-.01em}
+.lede{margin:6px 0 0;color:var(--muted);max-width:60ch}
+nav[role=tablist]{display:flex;gap:2px;background:var(--soft);padding:3px;border-radius:8px}
+nav button{white-space:nowrap;border:0;background:none;padding:7px 14px;border-radius:6px;cursor:pointer;color:var(--muted);font-weight:500}
+nav button[aria-selected=true]{background:var(--surface);color:var(--ink);box-shadow:0 0 0 1px var(--line)}
+.grid{display:grid;grid-template-columns:340px minmax(0,1fr);gap:20px;align-items:start}
+.grid>*,.results>*{min-width:0}
+nav[role=tablist]{max-width:100%;overflow-x:auto}
+@media (max-width:880px){.grid{grid-template-columns:1fr}}
+@media (max-width:520px){nav button{padding:6px 8px;font-size:.8rem}.ev li{grid-template-columns:1fr}.ev .v{text-align:left}.wrap{padding:20px 14px 48px}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px}
+aside.panel{position:sticky;top:calc(12px + env(safe-area-inset-top,0px));max-height:calc(100vh - 24px);display:flex;flex-direction:column}
+@media (max-width:880px){aside.panel{position:static;max-height:420px}}
+.aside-head{padding:14px 14px 10px;border-bottom:1px solid var(--line)}
+.aside-head h2{font-size:1rem;margin:0 0 2px}
+.aside-head p{margin:0;color:var(--muted);font-size:.85rem}
+.search{width:100%;margin-top:10px;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--paper)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{border:1px solid var(--line);background:none;border-radius:999px;padding:2px 10px;font-size:.8rem;cursor:pointer;color:var(--muted)}
+.chip[aria-pressed=true]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.list{overflow:auto;flex:1}
+.studio{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--soft);background:none;padding:11px 14px;cursor:pointer}
+.studio:hover{background:var(--paper)}
+.studio[aria-current=true]{background:var(--accent-soft)}
+.studio b{display:block;font-weight:600}
+.studio small{color:var(--muted);display:block;font-size:.8rem}
+.tag{display:inline-block;font-size:.72rem;padding:1px 7px;border-radius:4px;margin:4px 4px 0 0;background:var(--soft);color:var(--muted)}
+.tag.daxko{background:var(--accent);color:var(--surface)}
+.tag.comp{background:var(--mid-soft);color:var(--mid)}
+.empty{padding:20px 14px;color:var(--muted)}
+main section[hidden]{display:none}
+.form{padding:18px}
+.form h2{margin:0 0 4px;font-size:1.1rem}
+.form p{margin:0 0 14px;color:var(--muted);font-size:.9rem}
+.fields{display:grid;grid-template-columns:1.3fr 1.3fr .8fr auto;gap:10px;align-items:end}
+@media (max-width:640px){.fields{grid-template-columns:1fr}}
+label{display:block;font-size:.82rem;font-weight:600;margin-bottom:4px}
+.fields input{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:6px;background:var(--paper)}
+.run{border:0;background:var(--accent);color:var(--surface);padding:10px 18px;border-radius:6px;font-weight:600;cursor:pointer;white-space:nowrap}
+.btns{display:flex;gap:8px}
+.clear{border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:10px 14px;border-radius:6px;font-weight:600;cursor:pointer}
+.clear:hover{border-color:var(--ink)}
+.run:disabled{opacity:.6;cursor:progress}
+.examples{margin-top:18px;border-top:1px solid var(--soft);padding-top:14px}
+.examples h3{margin:0 0 8px;font-size:.95rem}
+.examples ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:8px}
+.examples button{width:100%;text-align:left;border:1px solid var(--line);background:var(--paper);border-radius:8px;padding:9px 12px;cursor:pointer;display:block}
+.examples button:hover{border-color:var(--accent);background:var(--accent-soft)}
+.ex-email{display:block;font-weight:600;font-size:.92rem;overflow-wrap:anywhere}
+.ex-studio{display:block;font-weight:500;font-size:.82rem;color:var(--accent)}
+.ex-note{display:block;font-size:.82rem;color:var(--muted);margin-top:2px}
+.techpanel .angle{padding:14px 18px 4px}
+.techpanel .angle strong{font-size:1.15rem;display:block}
+.techpanel .angle p{margin:2px 0 0;color:var(--muted)}
+.techpanel .daxko strong{color:var(--accent)} .techpanel .comp strong{color:var(--mid)} .techpanel .green strong{color:var(--ok)} .techpanel .none strong{color:var(--muted)}
+.techpanel td code{word-break:break-all;white-space:normal}
+.fam{display:inline-block;white-space:nowrap;font-size:.75rem;padding:1px 7px;border-radius:4px;background:var(--soft);color:var(--muted)}
+.fam.Daxko{background:var(--accent);color:var(--surface)} .fam.Competitor{background:var(--mid-soft);color:var(--mid)} .fam.Built-in{background:var(--ok-soft);color:var(--ok)}
+.scale-title{font-size:1.25rem;margin:18px 0 4px}
+.tests{margin-top:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:.85rem;color:var(--muted)}
+.tests button{border:1px dashed var(--line);background:none;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:.85rem;color:var(--ink)}
+.tests .note{flex-basis:100%;font-size:.78rem}
+.err{margin-top:12px;color:var(--no);font-weight:500}
+.err.ask{color:var(--mid)}
+.opt{font-weight:400;color:var(--muted)}
+input.needed{border-color:var(--mid)!important;box-shadow:0 0 0 2px var(--mid-soft)}
+.axes{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:6px}
+.axes small{display:block;color:var(--muted);font-size:.8rem}
+.axes strong{display:block;font-size:1.15rem;line-height:1.3}
+.axes .sub{color:var(--muted);font-size:.85rem}
+.tag.seg{background:var(--accent-soft);color:var(--accent)}
+.tag.bad{background:var(--no-soft);color:var(--no)}
+.results{margin-top:20px;display:grid;gap:20px}
+.trace{list-style:none;margin:0;padding:6px 18px 6px 18px;counter-reset:s}
+.trace li{position:relative;padding:14px 0 14px 46px;border-bottom:1px solid var(--soft)}
+.trace li:last-child{border-bottom:0}
+.trace li::before{counter-increment:s;content:counter(s);position:absolute;left:0;top:13px;width:28px;height:28px;border-radius:50%;
+  display:grid;place-items:center;font-size:.8rem;font-weight:700;background:var(--ok-soft);color:var(--ok)}
+.trace li.weak::before{background:var(--mid-soft);color:var(--mid)}
+.trace li.stopped::before{background:var(--no-soft);color:var(--no)}
+.trace li::after{content:"";position:absolute;left:13px;top:43px;bottom:-14px;width:2px;background:var(--soft)}
+.trace li:last-child::after{display:none}
+.trace h3{margin:0;font-size:.98rem;display:flex;justify-content:space-between;gap:12px}
+.trace h3 span{color:var(--muted);font-weight:400;font-size:.8rem}
+.trace p{margin:3px 0 0;max-width:72ch}
+.ev{margin:8px 0 0;padding:0;list-style:none;font-size:.85rem}
+.ev li{padding:5px 0 5px 0;border:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,max-content);gap:4px 14px}
+.ev li::before,.ev li::after{display:none}
+.ev .k{color:var(--ink)}
+.ev .v{color:var(--muted);text-align:right;word-break:break-all}
+.ev .pts{font-weight:700;color:var(--ok)} .ev .pts.neg{color:var(--no)} .ev .pts.zero{color:var(--muted)}
+.ev .src{grid-column:1/-1;color:var(--muted);font-size:.78rem;word-break:break-all}
+blockquote{grid-column:1/-1;margin:4px 0 2px;padding:8px 12px;background:var(--paper);border-left:3px solid var(--accent);border-radius:0 6px 6px 0;font-size:.86rem;line-height:1.55}
+mark{background:var(--mark);color:inherit;padding:0 2px;border-radius:2px}
+.verdict{padding:18px}
+.verdict .row{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:8px}
+.verdict h2{margin:0;font-size:1.35rem}
+.verdict .score{font-size:1.35rem;font-weight:700}
+.verdict.ok h2,.verdict.ok .score{color:var(--ok)} .verdict.mid h2,.verdict.mid .score{color:var(--mid)} .verdict.no h2,.verdict.no .score{color:var(--no)}
+.meter{position:relative;height:10px;border-radius:5px;background:var(--soft);margin:12px 0 4px;overflow:hidden}
+.meter i{position:absolute;inset:0 auto 0 0;border-radius:5px;background:currentColor;transition:width .6s ease}
+.verdict.ok .meter{color:var(--ok)} .verdict.mid .meter{color:var(--mid)} .verdict.no .meter{color:var(--no)}
+.ticks{position:relative;height:18px;font-size:.72rem;color:var(--muted)}
+.ticks span{position:absolute;transform:translateX(-50%)}
+.verdict p{margin:8px 0 0}
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--soft);vertical-align:top}
+th{font-weight:600;color:var(--muted);font-size:.8rem;background:var(--paper)}
+td code{font-size:.82rem;background:var(--paper);padding:1px 5px;border-radius:4px}
+.conf-High{color:var(--ok);font-weight:600}.conf-Medium{color:var(--mid);font-weight:600}.conf-Low,.conf-None{color:var(--no);font-weight:600}
+.panel-head{padding:16px 18px 6px}
+.panel-head h2{margin:0;font-size:1.1rem}
+.panel-head p{margin:4px 0 0;color:var(--muted);font-size:.9rem;max-width:72ch}
+.prose{padding:6px 22px 22px;max-width:76ch}
+.prose h3{font-size:1rem;margin:20px 0 4px}
+.prose p,.prose li{margin:6px 0}
+.notes{padding:4px 18px 18px;display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.notes div{background:var(--paper);border-radius:8px;padding:12px 14px;font-size:.88rem}
+.notes b{display:block;margin-bottom:2px}
+footer{margin-top:28px;color:var(--muted);font-size:.8rem}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <h1>Boutique lead verifier</h1>
+    <p class="lede">Takes an inbound lead's email, works out which studio it belongs to, checks whether the person runs it, and reads the studio's tech stack.</p>
+  </div>
+  <nav role="tablist" aria-label="Views">
+    <button role="tab" aria-selected="true" data-tab="verify">Verify a lead</button>
+    <button role="tab" aria-selected="false" data-tab="scale">Scaling nationwide</button>
+  </nav>
+</header>
+
+<div class="grid">
+  <aside class="panel" aria-label="Studio index">
+    <div class="aside-head">
+      <h2>Studio index</h2>
+      <p id="indexMeta">Loading…</p>
+      <input class="search" id="search" type="search" placeholder="Filter studios" aria-label="Filter studios">
+      <div class="chips" id="chips"></div>
+    </div>
+    <div class="list" id="list"></div>
+  </aside>
+
+  <main>
+    <section id="tab-verify">
+      <div class="panel form">
+        <h2>Run a lead through the check</h2>
+        <p>Start with the email. A business domain or a studio-named handle is enough on its own. Personal addresses like first.last@gmail.com also need the studio name the lead typed.</p>
+        <form class="fields" id="form">
+          <div><label for="email">Email</label><input id="email" type="email" required placeholder="name@gmail.com" autocomplete="off"></div>
+          <div><label for="studio">Studio name</label><input id="studio" placeholder="Needed for Gmail-type addresses" autocomplete="off"></div>
+          <div><label for="town">Town (optional)</label><input id="town" placeholder="Baltimore" autocomplete="off"></div>
+          <div class="btns"><button class="run" id="runBtn" type="submit">Run check</button><button class="clear" id="clearBtn" type="button">Clear</button></div>
+        </form>
+        <div class="examples">
+          <h3>Try a real lead</h3>
+          <ul id="examples"></ul>
+        </div>
+        <div class="err" id="err" role="alert"></div>
+      </div>
+      <div class="results" id="results" aria-live="polite"></div>
+    </section>
+
+    <section id="tab-scale" hidden>
+      <div class="panel prose">
+        <h2 class="scale-title">Can this run nationwide?</h2>
+        <p>Yes. Nothing in it is specific to Baltimore. OpenStreetMap covers the whole country, every studio's website is public, and the matching works the same everywhere.</p>
+        <h3>What would change</h3>
+        <ul>
+          <li><b>More complete studio list.</b> OpenStreetMap misses a lot of small studios. Foursquare's open places dataset (over 100 million businesses, free for commercial use) fills most of the gap.</li>
+          <li><b>Scheduled crawl instead of a laptop run.</b> The scrape becomes a monthly job that re-reads every studio's site and stores the results, so a lead check stays a fast lookup.</li>
+          <li><b>Automatic trigger.</b> Instead of pasting emails into a page, the check runs whenever a new HubSpot contact arrives without a company.</li>
+          <li><b>Paid search at volume.</b> The free search used to find a studio's new site after a dead link would need a paid search API at national scale.</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+</div>
+<footer>Studio data © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL) and each studio's public website. Portfolio demonstration; not affiliated with any company named.</footer>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+let STUDIOS = [], filterCat = "All", current = null;
+
+// tabs
+document.querySelectorAll("nav button").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll("nav button").forEach(x => x.setAttribute("aria-selected", x === b));
+  ["verify","scale"].forEach(t => $("#tab-" + t).hidden = t !== b.dataset.tab);
+}));
+
+// index
+async function loadIndex() {
+  try {
+    const r = await fetch("data/index.json", { cache: "no-store" });
+    const d = await r.json();
+    STUDIOS = d.studios || [];
+    const read = STUDIOS.filter(s => s.crawl?.status === "read").length;
+    const dropped = (d.dropped || []).length;
+    $("#indexMeta").textContent = STUDIOS.length
+      ? `${STUDIOS.length} studios with live websites, read ${(d.generated_at || "").slice(0,10)}.${dropped ? ` ${dropped} dropped for dead or squatted sites.` : ""}`
+      : "No studios indexed yet.";
+  } catch { $("#indexMeta").textContent = "Couldn't load the studio index."; }
+  const cats = ["All", ...new Set(STUDIOS.map(s => s.category))];
+  $("#chips").innerHTML = cats.map(c => `<button class="chip" aria-pressed="${c === filterCat}" data-c="${esc(c)}">${esc(c)}</button>`).join("");
+  $("#chips").onclick = e => { const c = e.target.dataset.c; if (!c) return; filterCat = c; loadChips(); renderList(); };
+  renderList();
+}
+function loadChips(){ document.querySelectorAll(".chip").forEach(c => c.setAttribute("aria-pressed", c.dataset.c === filterCat)); }
+const siteFlag = s => ({ taken_over: "Site taken over", dead: "Site down", missing: "No readable site", no_identity: "Site doesn't match" }[s.crawl?.health?.status] || "Site not readable");
+const leaders = s => (s.crawl?.people || []).filter(p => p.level === "owner" || p.level === "leader");
+function renderList() {
+  const q = $("#search").value.toLowerCase();
+  const rows = STUDIOS.filter(s => (filterCat === "All" || s.category === filterCat) && s.name.toLowerCase().includes(q))
+    .sort((a, b) => leaders(b).length - leaders(a).length || a.name.localeCompare(b.name));
+  if (!STUDIOS.length) { $("#list").innerHTML = `<div class="empty">Run <code>build_seed.py</code> to fill the index, then redeploy.</div>`; return; }
+  if (!rows.length) { $("#list").innerHTML = `<div class="empty">No studios match that filter.</div>`; return; }
+  $("#list").innerHTML = rows.map(s => {
+    const ppl = leaders(s).slice(0, 2).map(p => p.name).join(", ");
+    const bk = (s.crawl?.tech || []).find(t => t.family === "Daxko") || (s.crawl?.tech || []).find(t => t.family === "Competitor") || (s.crawl?.tech || []).find(t => t.family === "Built-in booking");
+    return `<button class="studio" data-id="${esc(s.id)}" aria-current="${current?.id === s.id}">
+      <b>${esc(s.name)}</b>
+      <small>${esc(s.category)}</small>${ppl ? `<small>${esc(ppl)}</small>` : ""}
+      ${bk ? `<span class="tag ${bk.family === "Daxko" ? "daxko" : bk.family === "Competitor" ? "comp" : ""}">${esc(bk.platform)}</span>` : `<span class="tag">No booking software found</span>`}
+      ${s.crawl?.segment && s.crawl.segment !== "Boutique" ? `<span class="tag seg">${esc(s.crawl.segment)}</span>` : ""}
+      ${s.crawl?.status !== "read" ? `<span class="tag bad">${esc(siteFlag(s))}</span>` : (s.crawl?.site_source || "").startsWith("Web search") ? `<span class="tag">Site found by search</span>` : ""}
+    </button>`;
+  }).join("");
+}
+$("#search").addEventListener("input", renderList);
+$("#list").addEventListener("click", e => {
+  const b = e.target.closest(".studio"); if (!b) return;
+  current = STUDIOS.find(s => s.id === b.dataset.id);
+  $("#studio").value = current.name; renderList(); $("#email").focus();
+});
+
+// real addresses, published on studio websites
+const EXAMPLES = [
+  { email: "info@kravmd.com", note: "Business domain, no studio name needed. Already runs a Daxko product." },
+  { email: "yogaunionbaltimore@gmail.com", note: "Gmail, but the handle names the studio. Books through Wix." },
+  { email: "kevin@clippercitycrossfit.com", note: "First name only, at the studio's own domain." },
+  { email: "marvinmcdowell87@gmail.com", studio: "UMAR Boxing", note: "Personal Gmail. Founder found on the board page." },
+  { email: "dschorr@bozzuto.com", studio: "UMAR Boxing", note: "His employer's domain. Board member of a nonprofit gym." },
+  { email: "support@arrow-yoga.com", note: "Shared inbox at a studio domain." },
+];
+$("#examples").innerHTML = EXAMPLES.map((x, i) => `<li><button type="button" data-i="${i}">
+  <span class="ex-email">${esc(x.email)}${x.studio ? ` <span class="ex-studio">Studio name: ${esc(x.studio)}</span>` : ""}</span>
+  <span class="ex-note">${esc(x.note)}</span></button></li>`).join("");
+$("#examples").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return; const x = EXAMPLES[+b.dataset.i];
+  $("#email").value = x.email; $("#studio").value = x.studio || ""; $("#town").value = "";
+  $("#form").requestSubmit();
+});
+
+// run
+function highlight(text, name) {
+  const t = esc(text); if (!name) return t;
+  return t.replace(new RegExp(esc(name).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"), m => `<mark>${m}</mark>`);
+}
+function stepHtml(s) {
+  const ev = (s.evidence || []).map(e => {
+    const isPts = /^[+-]?\d+$/.test(e.value || "");
+    const cls = isPts ? `pts ${+e.value < 0 ? "neg" : +e.value === 0 ? "zero" : ""}` : "v";
+    return `<li><span class="k">${esc(e.label)}</span><span class="${cls}">${esc(e.value ?? "")}</span>
+      ${e.snippet ? `<blockquote>…${highlight(e.snippet, e.highlight)}…</blockquote>` : ""}
+      ${e.source && isPts ? `<span class="src">${esc(e.source)}</span>` : ""}</li>`;
+  }).join("");
+  return `<li class="${esc(s.status)}"><h3>${esc(s.title)}<span>${s.ms} ms</span></h3><p>${esc(s.detail)}</p>${ev ? `<ul class="ev">${ev}</ul>` : ""}</li>`;
+}
+$("#clearBtn").addEventListener("click", () => {
+  ["#email", "#studio", "#town"].forEach(id => $(id).value = "");
+  $("#results").innerHTML = ""; $("#err").textContent = ""; $("#err").className = "err";
+  $("#studio").classList.remove("needed"); current = null; renderList(); $("#email").focus();
+});
+$("#form").addEventListener("submit", async e => {
+  e.preventDefault(); $("#err").textContent = ""; $("#err").className = "err"; $("#studio").classList.remove("needed"); const btn = $("#runBtn");
+  btn.disabled = true; btn.textContent = "Checking…"; $("#results").innerHTML = "";
+  try {
+    const r = await fetch("api/resolve", { method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: $("#email").value, studio: $("#studio").value, town: $("#town").value }) });
+    const raw = await r.text(); let d;
+    try { d = JSON.parse(raw); }
+    catch { d = { error: r.status === 404 || r.status === 405
+      ? `The checker isn't deployed (HTTP ${r.status}). The functions folder is probably missing from GitHub.`
+      : `The checker failed (HTTP ${r.status}): ${raw.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 160)}` }; }
+    if (!r.ok || d.error) throw new Error(d.error || `The checker returned ${r.status}.`);
+    if (d.need === "studio") { $("#err").className = "err ask"; $("#err").textContent = d.message; $("#studio").classList.add("needed"); $("#studio").focus(); return; }
+    const res = $("#results"); res.innerHTML = "";
+    const v = d.verdict, vc = v.score >= 70 ? "ok" : v.score >= 40 ? "mid" : "no";
+    res.insertAdjacentHTML("beforeend", `<div class="panel verdict ${vc}">
+      <div class="axes">
+        <div><small>Company</small><strong>${esc(v.company.status)}</strong><span class="sub">${esc(v.company.confidence)} confidence${v.company.segment ? `, ${esc(v.company.segment)}` : ""}</span></div>
+        <div><small>Contact</small><strong>${esc(v.person.status)}</strong><span class="sub">${v.person.name ? esc(v.person.name) : "&nbsp;"}</span></div>
+      </div>
+      <div class="row"><small class="sub">Contact confidence</small><span class="score">${v.score}/100</span></div>
+      <div class="meter"><i style="width:0"></i></div>
+      <div class="ticks"><span style="left:40%">40</span><span style="left:70%">70</span></div>
+      <p><b>Routing:</b> ${esc(v.routing)}</p></div>`);
+    
+    if (d.tech && d.trace.some(t => t.title === "Classify the account")) res.insertAdjacentHTML("beforeend", `<div class="panel techpanel">
+      <div class="angle ${esc(d.tech.angle.tone)}"><small class="sub">Tech stack</small><strong>${esc(d.tech.angle.label)}</strong><p>${esc(d.tech.angle.detail)}</p></div>
+      ${d.tech.items.length ? `<div class="tablewrap"><table><thead><tr><th>Tool</th><th>Type</th><th>Found in the site's code</th></tr></thead><tbody>
+      ${d.tech.items.map(t => `<tr><td>${esc(t.platform)}</td><td><span class="fam ${esc(t.family.split(" ")[0])}">${esc(t.family === "Daxko" ? "Daxko family" : t.family)}</span></td><td><code>${esc(t.evidence.slice(0, 110))}</code></td></tr>`).join("")}
+      </tbody></table></div>` : ""}</div>`);
+    res.insertAdjacentHTML("beforeend", `<div class="panel"><div class="panel-head"><h2>How it got there</h2></div><ol class="trace" id="trace"></ol></div>`);
+    res.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+    requestAnimationFrame(() => requestAnimationFrame(() => res.querySelector(".meter i").style.width = v.score + "%"));
+    for (const s of d.trace) {
+      $("#trace").insertAdjacentHTML("beforeend", stepHtml(s));
+      if (!reduce) await new Promise(ok => setTimeout(ok, 160));
+    }
+    if (d.record?.length) res.insertAdjacentHTML("beforeend", `<div class="panel"><div class="panel-head"><h2>Record to sync</h2>
+      <p>Every value carries its source and confidence.</p></div>
+      <div class="tablewrap"><table><thead><tr><th>Field</th><th>Value</th><th>Source</th><th>Confidence</th></tr></thead><tbody>
+      ${d.record.map(f => `<tr><td>${esc(f.field)}</td><td>${esc(f.value)}</td><td>${esc(f.source)}</td><td class="conf-${esc(f.confidence)}">${esc(f.confidence)}</td></tr>`).join("")}
+      </tbody></table></div></div>`);
+  } catch (ex) {
+    $("#err").textContent = location.protocol === "file:" ? "The live check only runs once the site is deployed to Cloudflare." : ex.message;
+  } finally { btn.disabled = false; btn.textContent = "Run check"; }
+});
+loadIndex();
+</script>
+</body>
+</html>

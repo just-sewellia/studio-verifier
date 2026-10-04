@@ -5,7 +5,7 @@ Total time: about 30–45 minutes. Cost: $0. No credit card anywhere.
 ## What's in the folder
 
 - `build_seed.py` builds the studio list. You run it once on your computer.
-- `public/` holds the web page. `public/data/seed.json` gets filled by the script.
+- `public/` holds the web page. The script fills `public/data/index.json` (a small list of studios) and `public/data/studios/` (one file per studio).
 - `functions/api/resolve.js` is the live checker, which runs on Cloudflare.
 
 ---
@@ -30,6 +30,10 @@ Total time: about 30–45 minutes. Cost: $0. No credit card anywhere.
    python build_seed.py
    ```
    It prints each studio as it reads it. Expect 5–10 minutes, because it waits a second between pages on purpose.
+Already ran the old version? Skip the crawl and convert what you downloaded:
+   ```
+   py build_seed.py --reprocess
+   ```
 9. When it says `Done`, look at the last line. If fewer than about 15 studios have a named owner or lead, run it again with the county ring included:
    ```
    python build_seed.py --wide
