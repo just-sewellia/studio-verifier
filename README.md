@@ -58,12 +58,15 @@ Total time: about 30–45 minutes. Cost: $0. No credit card anywhere.
 
 ## Part 4: Test before you send it
 
-1. Open your link and click a studio that shows an owner's name.
-2. Click **First.last format**. It should come back *Verified decision-maker* or *Likely affiliated*.
-3. Click **Owner of a different studio**. It should come back *Not verified*.
-4. Type a studio that isn't in the list, plus any email. This tests the live OpenStreetMap lookup.
-5. Click through 4–5 studios and confirm the owner names are right. If any look wrong, note them so the logic can be fixed before you send the link.
+1. Open your live link.
+2. Click each of the six **Try a real lead** buttons under the checker. Each one should show a company, a contact status, and a tech stack panel.
+3. Click a few studios in the index and check that the names and tech tags look right.
+4. Note anything that looks off, then send me the email you tried and what came back.
+
+When `build_seed.py` finishes, it also prints how many studios it **dropped** for dead or squatted websites. Those are left out of the index on purpose.
 
 ## Updating later
 
 Edit the files on GitHub, or re-upload them. Cloudflare redeploys automatically within a minute. Re-running `build_seed.py` only requires uploading the new `public/data/seed.json`.
+
+To update GitHub with new versions, drag the files or folders onto the repo's **Add file → Upload files** page again. Files with the same name and path are replaced.

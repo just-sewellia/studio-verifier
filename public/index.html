@@ -68,10 +68,35 @@ label{display:block;font-size:.82rem;font-weight:600;margin-bottom:4px}
 .fields input{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:6px;background:var(--paper)}
 .run{border:0;background:var(--accent);color:var(--surface);padding:10px 18px;border-radius:6px;font-weight:600;cursor:pointer;white-space:nowrap}
 .run:disabled{opacity:.6;cursor:progress}
+.examples{margin-top:18px;border-top:1px solid var(--soft);padding-top:14px}
+.examples h3{margin:0 0 8px;font-size:.95rem}
+.examples ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:8px}
+.examples button{width:100%;text-align:left;border:1px solid var(--line);background:var(--paper);border-radius:8px;padding:9px 12px;cursor:pointer;display:block}
+.examples button:hover{border-color:var(--accent);background:var(--accent-soft)}
+.ex-email{display:block;font-weight:600;font-size:.92rem;overflow-wrap:anywhere}
+.ex-studio{display:block;font-weight:500;font-size:.82rem;color:var(--accent)}
+.ex-note{display:block;font-size:.82rem;color:var(--muted);margin-top:2px}
+.techpanel .angle{padding:14px 18px 4px}
+.techpanel .angle strong{font-size:1.15rem;display:block}
+.techpanel .angle p{margin:2px 0 0;color:var(--muted)}
+.techpanel .daxko strong{color:var(--accent)} .techpanel .comp strong{color:var(--mid)} .techpanel .green strong{color:var(--ok)} .techpanel .none strong{color:var(--muted)}
+.techpanel td code{word-break:break-all;white-space:normal}
+.fam{display:inline-block;white-space:nowrap;font-size:.75rem;padding:1px 7px;border-radius:4px;background:var(--soft);color:var(--muted)}
+.fam.Daxko{background:var(--accent);color:var(--surface)} .fam.Competitor{background:var(--mid-soft);color:var(--mid)} .fam.Built-in{background:var(--ok-soft);color:var(--ok)}
+.scale-title{font-size:1.25rem;margin:18px 0 4px}
 .tests{margin-top:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:.85rem;color:var(--muted)}
 .tests button{border:1px dashed var(--line);background:none;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:.85rem;color:var(--ink)}
 .tests .note{flex-basis:100%;font-size:.78rem}
 .err{margin-top:12px;color:var(--no);font-weight:500}
+.err.ask{color:var(--mid)}
+.opt{font-weight:400;color:var(--muted)}
+input.needed{border-color:var(--mid)!important;box-shadow:0 0 0 2px var(--mid-soft)}
+.axes{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:6px}
+.axes small{display:block;color:var(--muted);font-size:.8rem}
+.axes strong{display:block;font-size:1.15rem;line-height:1.3}
+.axes .sub{color:var(--muted);font-size:.85rem}
+.tag.seg{background:var(--accent-soft);color:var(--accent)}
+.tag.bad{background:var(--no-soft);color:var(--no)}
 .results{margin-top:20px;display:grid;gap:20px}
 .trace{list-style:none;margin:0;padding:6px 18px 6px 18px;counter-reset:s}
 .trace li{position:relative;padding:14px 0 14px 46px;border-bottom:1px solid var(--soft)}
@@ -129,12 +154,11 @@ footer{margin-top:28px;color:var(--muted);font-size:.8rem}
 <header>
   <div>
     <h1>Boutique lead verifier</h1>
-    <p class="lede">Checks whether an inbound address from a personal mailbox belongs to someone who runs the studio they named, then attaches the studio's domain and booking software.</p>
+    <p class="lede">Takes an inbound lead's email, works out which studio it belongs to, checks whether the person runs it, and reads the studio's tech stack.</p>
   </div>
   <nav role="tablist" aria-label="Views">
     <button role="tab" aria-selected="true" data-tab="verify">Verify a lead</button>
-    <button role="tab" aria-selected="false" data-tab="mapping">Field mapping</button>
-    <button role="tab" aria-selected="false" data-tab="method">Method and guardrails</button>
+    <button role="tab" aria-selected="false" data-tab="scale">Scaling nationwide</button>
   </nav>
 </header>
 
@@ -153,75 +177,36 @@ footer{margin-top:28px;color:var(--muted);font-size:.8rem}
     <section id="tab-verify">
       <div class="panel form">
         <h2>Run a lead through the check</h2>
-        <p>Enter what an inbound form would give you: an email and the studio name, typed however the lead typed it.</p>
+        <p>Start with the email. A business domain or a studio-named handle is enough on its own. Personal addresses like first.last@gmail.com also need the studio name the lead typed.</p>
         <form class="fields" id="form">
           <div><label for="email">Email</label><input id="email" type="email" required placeholder="name@gmail.com" autocomplete="off"></div>
-          <div><label for="studio">Studio name</label><input id="studio" required placeholder="e.g. charm city bjj" autocomplete="off"></div>
+          <div><label for="studio">Studio name <span class="opt">if personal address</span></label><input id="studio" placeholder="e.g. charm city bjj" autocomplete="off"></div>
           <div><label for="town">Town (optional)</label><input id="town" placeholder="Baltimore" autocomplete="off"></div>
           <button class="run" id="runBtn" type="submit">Run check</button>
         </form>
-        <div class="tests" id="tests" hidden></div>
+        <div class="examples">
+          <h3>Try a real lead</h3>
+          <ul id="examples"></ul>
+        </div>
         <div class="err" id="err" role="alert"></div>
       </div>
       <div class="results" id="results" aria-live="polite"></div>
     </section>
 
-    <section id="tab-mapping" hidden>
-      <div class="panel">
-        <div class="panel-head">
-          <h2>Where each field lands</h2>
-          <p>Salesforce stays the source of truth for accounts. HubSpot is the lead engine, so it writes verification results and only proposes account data when Salesforce is blank. Property names are proposals.</p>
-        </div>
-        <div class="tablewrap"><table>
-          <thead><tr><th>Field</th><th>HubSpot</th><th>Salesforce</th><th>Who wins a conflict</th></tr></thead>
-          <tbody>
-            <tr><td>Verification status</td><td><code>lead_verification_status</code> (Contact)</td><td><code>Verification_Status__c</code> (Lead / Contact)</td><td>HubSpot writes, Salesforce reads</td></tr>
-            <tr><td>Verification score</td><td><code>lead_verification_score</code></td><td><code>Verification_Score__c</code></td><td>HubSpot writes, Salesforce reads</td></tr>
-            <tr><td>Evidence URL</td><td><code>lead_verification_evidence_url</code></td><td><code>Verification_Evidence__c</code></td><td>HubSpot writes, Salesforce reads</td></tr>
-            <tr><td>Verified role level</td><td><code>verified_role_level</code> (owner / leader / staff)</td><td><code>Role_Level__c</code></td><td>Salesforce, once a rep confirms</td></tr>
-            <tr><td>Company domain</td><td>Company <code>domain</code></td><td>Account <code>Website</code></td><td>Salesforce. HubSpot fills only if blank</td></tr>
-            <tr><td>Booking platform</td><td>Company <code>booking_platform</code></td><td>Account <code>Current_Platform__c</code></td><td>Salesforce. HubSpot fills only if blank</td></tr>
-            <tr><td>Platform family</td><td>Company <code>platform_family</code> (Daxko / competitor / scheduler)</td><td>Account <code>Platform_Family__c</code></td><td>Salesforce</td></tr>
-            <tr><td>Location count</td><td>Company <code>location_count</code></td><td>Account <code>Location_Count__c</code></td><td>Salesforce</td></tr>
-            <tr><td>SMS consent</td><td><code>sms_consent_status</code> (default Unknown)</td><td><code>SMS_Consent__c</code></td><td>Preference center only. Enrichment never writes opt-in</td></tr>
-            <tr><td>Enrichment source and date</td><td><code>enrichment_source</code>, <code>enrichment_verified_at</code></td><td>Matching custom fields</td><td>Most recent check</td></tr>
-          </tbody>
-        </table></div>
-        <div class="notes">
-          <div><b>Associate by record, not by domain</b>HubSpot won't link a Gmail contact to a company by email domain. A verified result should set the association to the matched company record directly.</div>
-          <div><b>Scores route, people decide</b>Only "Verified decision-maker" auto-routes to sales. Everything else goes to a review queue with the evidence attached.</div>
-          <div><b>Every value carries a source</b>Each field stores where it came from and when, so stale enrichment can be found and refreshed instead of silently trusted.</div>
-        </div>
-      </div>
-    </section>
-
-    <section id="tab-method" hidden>
+    <section id="tab-scale" hidden>
       <div class="panel prose">
-        <h3>The problem</h3>
-        <p>Boutique owners often run the business from a personal inbox. A lead from <em>firstname.lastname@gmail.com</em> carries no company domain, so domain-based matching and enrichment fail, and the lead can't be tied to an account or a tech stack.</p>
-        <h3>How the check works</h3>
-        <p>The studio is matched against an index of real, single-location Baltimore studios built from OpenStreetMap. The studio's own website supplies the domain. Its home, about, team and contact pages are searched for a person whose name fits the inbound address in any common pattern: first.last, initial plus surname, first name plus initial, or a nickname. The role written closest to that name decides how much it counts. An exact match between the inbound address and one the studio publishes counts as well.</p>
-        <h3>Guardrails built in</h3>
-        <ul>
-          <li>Inbound addresses are checked, never generated or guessed. The test inputs on this page are format tests built from names the studios publish.</li>
-          <li>Only public business sources are read, robots.txt is respected, and requests identify themselves.</li>
-          <li>Personal contact details beyond the submitted email aren't collected or displayed.</li>
-          <li>SMS consent is always written as Unknown. Consent comes from the preference center, never from enrichment.</li>
-          <li>Every result shows its evidence, so a person can overrule it.</li>
-        </ul>
-        <h3>Known limits</h3>
-        <ul>
-          <li>OpenStreetMap coverage is incomplete, and some studios list only a Facebook page, which can't be read.</li>
-          <li>Names inside images or behind booking-app logins aren't visible.</li>
-          <li>Booking software loaded only after a click may not be detected.</li>
-        </ul>
-        <h3>What production would add</h3>
-        <ul>
-          <li>Run the same logic as a Clay waterfall on new HubSpot contacts with free-mail domains.</li>
-          <li>Match against the Maryland business registry, where a small studio's resident agent is often the owner.</li>
-          <li>Use names captured in Qualified chat transcripts as a second signal.</li>
-          <li>Route multi-location and nonprofit accounts to different sources, such as RocketReach and Cause IQ, since their buying committees are spread out.</li>
-        </ul>
+        <h2 class="scale-title">Scaling this nationwide</h2>
+        <p>The Baltimore version has three parts that change at national scale: where the studio list comes from, when the check runs, and how studio websites stay fresh.</p>
+        <h3>A national studio list</h3>
+        <p>OpenStreetMap already covers the whole country for free, but small studios are patchy in it. Foursquare's open places dataset fills most of the gap: over 100 million businesses, free for commercial use and refreshed monthly. Daxko's own Salesforce accounts and closed-lost deals add the studios sales already knows. Records are merged on website domain and phone number.</p>
+        <h3>Run on new leads, not on demand</h3>
+        <p>A HubSpot workflow fires when a contact arrives with a personal-mailbox domain or no associated company. It calls the checker and writes back the company association, contact status and tech stack. The same logic could live in a Clay table if the team would rather own it there. Cost grows with inbound volume, not with the number of studios in the country.</p>
+        <h3>Read studio sites ahead of time</h3>
+        <p>Every studio site is re-read on a monthly schedule and stored, so checking a lead becomes a fast lookup instead of a live crawl. Sites that go dead or get squatted fall into a recovery queue that searches for the studio's new site. At volume, a paid search API replaces the free search used here.</p>
+        <h3>The crawl doubles as a market map</h3>
+        <p>Recording every studio's booking software shows competitor share metro by metro: where Mindbody is entrenched, where studios still book through Wix or Square, and which ones already run a Daxko product. That's a targeting list for displacement and greenfield campaigns that doesn't depend on anyone filling out a form.</p>
+        <h3>People stay in the loop where it matters</h3>
+        <p>Only verified owners route automatically. Everything else goes to a review queue with the evidence attached, and each SDR confirmation becomes a labeled example for tuning the matching rules.</p>
       </div>
     </section>
   </main>
@@ -238,7 +223,7 @@ let STUDIOS = [], filterCat = "All", current = null;
 // tabs
 document.querySelectorAll("nav button").forEach(b => b.addEventListener("click", () => {
   document.querySelectorAll("nav button").forEach(x => x.setAttribute("aria-selected", x === b));
-  ["verify","mapping","method"].forEach(t => $("#tab-" + t).hidden = t !== b.dataset.tab);
+  ["verify","scale"].forEach(t => $("#tab-" + t).hidden = t !== b.dataset.tab);
 }));
 
 // index
@@ -248,8 +233,9 @@ async function loadIndex() {
     const d = await r.json();
     STUDIOS = d.studios || [];
     const read = STUDIOS.filter(s => s.crawl?.status === "read").length;
+    const dropped = (d.dropped || []).length;
     $("#indexMeta").textContent = STUDIOS.length
-      ? `${STUDIOS.length} single-location studios in ${d.area}. ${read} websites read on ${(d.generated_at || "").slice(0,10)}.`
+      ? `${STUDIOS.length} studios with live websites, read ${(d.generated_at || "").slice(0,10)}.${dropped ? ` ${dropped} dropped for dead or squatted sites.` : ""}`
       : "No studios indexed yet.";
   } catch { $("#indexMeta").textContent = "Couldn't load the studio index."; }
   const cats = ["All", ...new Set(STUDIOS.map(s => s.category))];
@@ -258,6 +244,7 @@ async function loadIndex() {
   renderList();
 }
 function loadChips(){ document.querySelectorAll(".chip").forEach(c => c.setAttribute("aria-pressed", c.dataset.c === filterCat)); }
+const siteFlag = s => ({ taken_over: "Site taken over", dead: "Site down", missing: "No readable site", no_identity: "Site doesn't match" }[s.crawl?.health?.status] || "Site not readable");
 const leaders = s => (s.crawl?.people || []).filter(p => p.level === "owner" || p.level === "leader");
 function renderList() {
   const q = $("#search").value.toLowerCase();
@@ -267,12 +254,13 @@ function renderList() {
   if (!rows.length) { $("#list").innerHTML = `<div class="empty">No studios match that filter.</div>`; return; }
   $("#list").innerHTML = rows.map(s => {
     const ppl = leaders(s).slice(0, 2).map(p => p.name).join(", ");
-    const bk = (s.crawl?.tech || []).find(t => ["Daxko","Competitor","General scheduler"].includes(t.family));
+    const bk = (s.crawl?.tech || []).find(t => t.family === "Daxko") || (s.crawl?.tech || []).find(t => t.family === "Competitor") || (s.crawl?.tech || []).find(t => t.family === "Built-in booking");
     return `<button class="studio" data-id="${esc(s.id)}" aria-current="${current?.id === s.id}">
       <b>${esc(s.name)}</b>
       <small>${esc(s.category)}</small>${ppl ? `<small>${esc(ppl)}</small>` : ""}
-      ${bk ? `<span class="tag ${bk.family === "Daxko" ? "daxko" : bk.family === "Competitor" ? "comp" : ""}">${esc(bk.platform)}</span>` : ""}
-      ${s.crawl?.status !== "read" ? `<span class="tag">Site not readable</span>` : ""}
+      ${bk ? `<span class="tag ${bk.family === "Daxko" ? "daxko" : bk.family === "Competitor" ? "comp" : ""}">${esc(bk.platform)}</span>` : `<span class="tag">No booking software found</span>`}
+      ${s.crawl?.segment && s.crawl.segment !== "Boutique" ? `<span class="tag seg">${esc(s.crawl.segment)}</span>` : ""}
+      ${s.crawl?.status !== "read" ? `<span class="tag bad">${esc(siteFlag(s))}</span>` : (s.crawl?.site_source || "").startsWith("Web search") ? `<span class="tag">Site found by search</span>` : ""}
     </button>`;
   }).join("");
 }
@@ -280,30 +268,28 @@ $("#search").addEventListener("input", renderList);
 $("#list").addEventListener("click", e => {
   const b = e.target.closest(".studio"); if (!b) return;
   current = STUDIOS.find(s => s.id === b.dataset.id);
-  $("#studio").value = current.name; $("#email").value = ""; renderList(); renderTests(); $("#email").focus();
+  $("#studio").value = current.name; renderList(); $("#email").focus();
 });
 
-// test inputs built from names the studio publishes
-const slug = s => s.toLowerCase().normalize("NFKD").replace(/[^a-z]/g, "");
-function renderTests() {
-  const t = $("#tests"); const p = current && leaders(current)[0];
-  const other = STUDIOS.find(s => s.id !== current?.id && leaders(s).length);
-  const opts = [];
-  if (p) {
-    const [f, ...rest] = p.name.split(" "); const l = rest.join("");
-    opts.push(["First.last format", `${slug(f)}.${slug(l)}@gmail.com`]);
-    opts.push(["Initial + surname", `${slug(f)[0]}${slug(l)}@gmail.com`]);
-  }
-  if (other) { const o = leaders(other)[0]; const [f, ...r] = o.name.split(" "); opts.push(["Owner of a different studio", `${slug(f)}.${slug(r.join(""))}@gmail.com`]); }
-  if (!opts.length) { t.hidden = true; return; }
-  t.hidden = false;
-  t.innerHTML = `Try: ${opts.map(([lab, em]) => `<button type="button" data-em="${esc(em)}">${esc(lab)}</button>`).join("")}
-    <span class="note">These are format tests built from names published on studio websites, not known addresses.</span>`;
-  t.onclick = e => { const em = e.target.dataset.em; if (em) { $("#email").value = em; $("#form").requestSubmit(); } };
-}
+// real addresses, published on studio websites
+const EXAMPLES = [
+  { email: "info@kravmd.com", note: "Business domain, no studio name needed. Already runs a Daxko product." },
+  { email: "yogaunionbaltimore@gmail.com", note: "Gmail, but the handle names the studio. Books through Wix." },
+  { email: "kevin@clippercitycrossfit.com", note: "First name only, at the studio's own domain." },
+  { email: "marvinmcdowell87@gmail.com", studio: "UMAR Boxing", note: "Personal Gmail. Founder found on the board page." },
+  { email: "dschorr@bozzuto.com", studio: "UMAR Boxing", note: "His employer's domain. Board member of a nonprofit gym." },
+  { email: "support@arrow-yoga.com", note: "Shared inbox at a studio domain." },
+];
+$("#examples").innerHTML = EXAMPLES.map((x, i) => `<li><button type="button" data-i="${i}">
+  <span class="ex-email">${esc(x.email)}${x.studio ? ` <span class="ex-studio">Studio name: ${esc(x.studio)}</span>` : ""}</span>
+  <span class="ex-note">${esc(x.note)}</span></button></li>`).join("");
+$("#examples").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return; const x = EXAMPLES[+b.dataset.i];
+  $("#email").value = x.email; $("#studio").value = x.studio || ""; $("#town").value = "";
+  $("#form").requestSubmit();
+});
 
 // run
-const verdictClass = s => s.startsWith("Verified") ? "ok" : s.startsWith("Likely") || s.startsWith("Staff") ? "mid" : "no";
 function highlight(text, name) {
   const t = esc(text); if (!name) return t;
   return t.replace(new RegExp(esc(name).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"), m => `<mark>${m}</mark>`);
@@ -319,28 +305,40 @@ function stepHtml(s) {
   return `<li class="${esc(s.status)}"><h3>${esc(s.title)}<span>${s.ms} ms</span></h3><p>${esc(s.detail)}</p>${ev ? `<ul class="ev">${ev}</ul>` : ""}</li>`;
 }
 $("#form").addEventListener("submit", async e => {
-  e.preventDefault(); $("#err").textContent = ""; const btn = $("#runBtn");
+  e.preventDefault(); $("#err").textContent = ""; $("#err").className = "err"; $("#studio").classList.remove("needed"); const btn = $("#runBtn");
   btn.disabled = true; btn.textContent = "Checking…"; $("#results").innerHTML = "";
   try {
     const r = await fetch("api/resolve", { method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ email: $("#email").value, studio: $("#studio").value, town: $("#town").value }) });
     const d = await r.json().catch(() => ({ error: "The checker didn't return a readable answer." }));
     if (!r.ok || d.error) throw new Error(d.error || `The checker returned ${r.status}.`);
-    const res = $("#results");
-    res.innerHTML = `<div class="panel"><ol class="trace" id="trace"></ol></div>`;
+    if (d.need === "studio") { $("#err").className = "err ask"; $("#err").textContent = d.message; $("#studio").classList.add("needed"); $("#studio").focus(); return; }
+    const res = $("#results"); res.innerHTML = "";
+    const v = d.verdict, vc = v.score >= 70 ? "ok" : v.score >= 40 ? "mid" : "no";
+    res.insertAdjacentHTML("beforeend", `<div class="panel verdict ${vc}">
+      <div class="axes">
+        <div><small>Company</small><strong>${esc(v.company.status)}</strong><span class="sub">${esc(v.company.confidence)} confidence${v.company.segment ? `, ${esc(v.company.segment)}` : ""}</span></div>
+        <div><small>Contact</small><strong>${esc(v.person.status)}</strong><span class="sub">${v.person.name ? esc(v.person.name) : "&nbsp;"}</span></div>
+      </div>
+      <div class="row"><small class="sub">Contact confidence</small><span class="score">${v.score}/100</span></div>
+      <div class="meter"><i style="width:0"></i></div>
+      <div class="ticks"><span style="left:40%">40</span><span style="left:70%">70</span></div>
+      <p><b>Routing:</b> ${esc(v.routing)}</p></div>`);
+    
+    if (d.tech && d.trace.some(t => t.title === "Classify the account")) res.insertAdjacentHTML("beforeend", `<div class="panel techpanel">
+      <div class="angle ${esc(d.tech.angle.tone)}"><small class="sub">Tech stack</small><strong>${esc(d.tech.angle.label)}</strong><p>${esc(d.tech.angle.detail)}</p></div>
+      ${d.tech.items.length ? `<div class="tablewrap"><table><thead><tr><th>Tool</th><th>Type</th><th>Found in the site's code</th></tr></thead><tbody>
+      ${d.tech.items.map(t => `<tr><td>${esc(t.platform)}</td><td><span class="fam ${esc(t.family.split(" ")[0])}">${esc(t.family === "Daxko" ? "Daxko family" : t.family)}</span></td><td><code>${esc(t.evidence.slice(0, 110))}</code></td></tr>`).join("")}
+      </tbody></table></div>` : ""}</div>`);
+    res.insertAdjacentHTML("beforeend", `<div class="panel"><div class="panel-head"><h2>How it got there</h2></div><ol class="trace" id="trace"></ol></div>`);
+    res.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+    requestAnimationFrame(() => requestAnimationFrame(() => res.querySelector(".meter i").style.width = v.score + "%"));
     for (const s of d.trace) {
       $("#trace").insertAdjacentHTML("beforeend", stepHtml(s));
-      if (!reduce) await new Promise(ok => setTimeout(ok, 260));
+      if (!reduce) await new Promise(ok => setTimeout(ok, 160));
     }
-    const v = d.verdict, vc = verdictClass(v.status);
-    res.insertAdjacentHTML("beforeend", `<div class="panel verdict ${vc}">
-      <div class="row"><h2>${esc(v.status)}</h2><span class="score">${v.score}/100</span></div>
-      <div class="meter"><i style="width:0"></i></div>
-      <div class="ticks"><span style="left:40%">40 likely</span><span style="left:70%">70 verified</span></div>
-      <p><b>Routing:</b> ${esc(v.routing)}</p></div>`);
-    requestAnimationFrame(() => requestAnimationFrame(() => res.querySelector(".meter i").style.width = v.score + "%"));
     if (d.record?.length) res.insertAdjacentHTML("beforeend", `<div class="panel"><div class="panel-head"><h2>Record to sync</h2>
-      <p>Every value carries its source and confidence. See Field mapping for where each one lands.</p></div>
+      <p>Every value carries its source and confidence.</p></div>
       <div class="tablewrap"><table><thead><tr><th>Field</th><th>Value</th><th>Source</th><th>Confidence</th></tr></thead><tbody>
       ${d.record.map(f => `<tr><td>${esc(f.field)}</td><td>${esc(f.value)}</td><td>${esc(f.source)}</td><td class="conf-${esc(f.confidence)}">${esc(f.confidence)}</td></tr>`).join("")}
       </tbody></table></div></div>`);
