@@ -25,7 +25,9 @@ const NICK = { mike: "michael", chris: "christopher", kate: "katherine", katie: 
   pat: "patrick", ed: "edward", greg: "gregory", jon: "jonathan", josh: "joshua", tim: "timothy", ken: "kenneth",
   jeff: "jeffrey", rich: "richard", rick: "richard", ron: "ronald", don: "donald", abby: "abigail",
   maggie: "margaret", cathy: "catherine", kathy: "katherine" };
-const firstVariants = f => { const s = new Set([f]); if (NICK[f]) s.add(NICK[f]); for (const [k, v] of Object.entries(NICK)) if (v === f || v === NICK[f]) s.add(k); return s; };
+const NICK_REV = new Map(); for (const [k, v] of Object.entries(NICK)) { if (!NICK_REV.has(v)) NICK_REV.set(v, []); NICK_REV.get(v).push(k); }
+const FV_CACHE = new Map();
+const firstVariants = f => { let s = FV_CACHE.get(f); if (s) return s; s = new Set([f]); const full = NICK[f] || f; s.add(full); for (const k of NICK_REV.get(full) || []) s.add(k); FV_CACHE.set(f, s); return s; };
 
 const FINGERPRINTS = [
   ["Zen Planner", "Daxko", /zenplanner\.com/i],
@@ -101,7 +103,7 @@ performance mixed self little ninjas tigers dragons warriors lions fundamentals 
 intermediate all levels st ave rd blvd ste get started view details click here go back esquire esq cpa phd jr sr
 senior vice chief officer development company university college high school group design theory board
 partnerships press support menu directors operation accounting partner partners president executive manager
-associates foundation youth city county state ceo cfo coo blue green brown purple red yellow orange gray grey white`.split(/\s+/));
+associates foundation youth city county state ceo cfo coo blue green brown purple red yellow orange gray grey white african american asian hispanic latino latina native korean japanese chinese irish italian mexican puerto rican jewish christian catholic first former current licensed retired professional amateur regional usa hall fame lady gentleman ladies men women girls boys veteran veterans army navy marine marines air force police`.split(/\s+/));
 
 const GENERIC = new Set(`yoga studio studios boxing center centre fitness gym academy karate martial arts art the of and
 baltimore md crossfit pilates barre dojo school club training jiu jitsu bjj mma kickboxing taekwondo judo kung fu
@@ -155,6 +157,8 @@ function nameSimilarity(a, b) {
 function handleMatch(handle, studioName) {
   const h = squash(handle).replace(/\d+/g, ""); const n = h.length; if (n < 4) return { score: 0 };
   const ws = words(studioName); if (!ws.length) return { score: 0 };
+  // quick reject: some real word (or its abbreviation) from the name must appear in the handle
+  if (!ws.some(w => (w.length >= 3 && h.includes(w.length > 4 ? w.slice(0, 4) : w)) || (ABBR[w] || []).some(a => a.length >= 2 && h.includes(a)))) return { score: 0 };
   const variants = ws.map(w => {
     const v = new Map(); const add = (x, credit) => { if (x && (!v.has(x) || v.get(x) < credit)) v.set(x, credit); };
     const bases = [w]; if (w.length > 3 && w.endsWith("s")) bases.push(w.slice(0, -1));
@@ -175,7 +179,7 @@ function handleMatch(handle, studioName) {
   let score = 0.6 * coverage + 0.4 * wordCov; if (!distinctive) score *= 0.5;
   return { score: Math.round(score * 100) / 100, coverage };
 }
-const matchScore = (input, name, isHandle) => Math.round(Math.max(isHandle ? 0 : nameSimilarity(input, name), handleMatch(input, name).score) * 100) / 100;
+const matchScore = (input, name) => { const sim = nameSimilarity(input, name); const needDP = !/\s/.test(input.trim()) || sim >= 0.3; return Math.round(Math.max(sim, needDP ? handleMatch(input, name).score : 0) * 100) / 100; };
 
 // ---------------------------------------------------------------- people
 const pretty = t => { t = t.replace(/['’]s$/, ""); if (t === t.toUpperCase() || /^Mc[A-Z]{2,}/.test(t)) { t = t[0] + t.slice(1).toLowerCase(); if (/^Mc./.test(t)) t = "Mc" + t[2].toUpperCase() + t.slice(3); } return t; };
@@ -199,8 +203,9 @@ function confirmed(text, p) {
   const near = text.slice(Math.max(0, p.start - 45), p.start) + " " + text.slice(p.end, p.end + 45);
   OWNER_RE.lastIndex = LEADER_RE.lastIndex = 0;
   if (OWNER_RE.test(near) || LEADER_RE.test(near) || HONORIFIC_RE.test(text.slice(Math.max(0, p.start - 16), p.start))) return true;
-  return (text.match(new RegExp(p.first + "\\s+" + p.last, "gi")) || []).length >= 2;
+  return (p.counts?.get(p.name.toLowerCase()) || 0) >= 2;
 }
+function withCounts(pairs) { const m = new Map(); for (const p of pairs) { const k = p.name.toLowerCase(); m.set(k, (m.get(k) || 0) + 1); } for (const p of pairs) p.counts = m; return pairs; }
 const pageContext = (url, text) => { const h = (url + " " + text.slice(0, 300)).toLowerCase(); return /board|trustee/.test(h) ? "board" : /team|staff|instructor|coach|faculty|trainer/.test(h) ? "team" : null; };
 function roleFor(text, occ, others, ctx) {
   const lo = Math.max(0, occ.start - 160), hi = Math.min(text.length, occ.end + 220), win = text.slice(lo, hi);
@@ -268,7 +273,7 @@ async function robotsAllows(url) {
 }
 async function getPage(url, ms = 7000) {
   try { const r = await timedFetch(url, ms); if (!r.ok) return { err: `HTTP ${r.status}` }; if (!/html/i.test(r.headers.get("content-type") || "html")) return { err: "not a web page" };
-    return { url: r.url || url, html: (await r.text()).slice(0, 250000) }; } catch (e) { return { err: e.name === "AbortError" ? "timed out" : "unreachable" }; }
+    return { url: r.url || url, html: (await r.text()).slice(0, 150000) }; } catch (e) { return { err: e.name === "AbortError" ? "timed out" : "unreachable" }; }
 }
 function siteHealth(name, html) {
   const text = (metaName(html) + " " + htmlToText(html)).toLowerCase().slice(0, 25000);
@@ -313,8 +318,8 @@ async function readSite(home) {
     if (regDomain(u.hostname) === root && /schedule|book|pricing|plans|membership|join|sign-?up|start|trial|register|store/i.test(u.pathname) && !links.includes(u.href) && !bookingLinks.includes(u.href)) bookingLinks.push(u.href);
   }
   const [extraAll, bookingPages] = await Promise.all([
-    Promise.all(links.slice(0, 4).map(u => getPage(u, 6000))),
-    Promise.all(bookingLinks.slice(0, 2).map(u => getPage(u, 5000)))]);
+    Promise.all(links.slice(0, 3).map(u => getPage(u, 6000))),
+    Promise.all(bookingLinks.slice(0, 1).map(u => getPage(u, 5000)))]);
   const extra = extraAll.filter(p => p.html);
   const all = [home, ...extra]; const pages = all.map(p => ({ url: p.url, text: htmlToText(p.html).slice(0, 14000) }));
   const emails = []; for (const p of all) for (const e of findEmails(p.html)) if (!emails.some(x => x.email === e)) emails.push({ email: e, page: p.url });
@@ -341,7 +346,11 @@ function segmentOf(domain, text) {
 }
 
 // ---------------------------------------------------------------- pipeline
-export async function onRequestPost({ request, env }) {
+export async function onRequestPost(ctx) {
+  try { return await handle(ctx); }
+  catch (e) { return json({ error: `The checker hit an error: ${e?.message || e}` }, 500); }
+}
+async function handle({ request, env }) {
   let body; try { body = await request.json(); } catch { return json({ error: "Send JSON: {email, studio?}" }, 400); }
   const trace = []; const t0 = Date.now(); let tick = t0;
   const step = (title, status, detail, evidence = []) => { const now = Date.now(); trace.push({ title, status, detail, evidence, ms: now - tick }); tick = now; };
@@ -351,7 +360,7 @@ export async function onRequestPost({ request, env }) {
   const pe = parseEmail(body.email);
   if (!pe) return json({ error: "That email address doesn't look valid." }, 400);
   let seed = { studios: [] };
-  try { const r = await env.ASSETS.fetch(new URL("/data/seed.json", request.url)); if (r.ok) seed = await r.json(); } catch {}
+  try { const r = await env.ASSETS.fetch(new URL("/data/index.json", request.url)); if (r.ok) seed = await r.json(); } catch {}
   const S = seed.studios || [];
 
   let handleHit = null;
@@ -439,6 +448,9 @@ export async function onRequestPost({ request, env }) {
   step("Identify the studio", conf === "High" ? "done" : "weak", `${studio.name}. ${method}.`, ev2);
 
   // 3 ── is the website still theirs?
+  if (studio.file && studio.crawl?.status === "read" && !studio.crawl.pages) {
+    try { const r = await env.ASSETS.fetch(new URL(`/data/studios/${studio.file}.json`, request.url)); if (r.ok) studio = { ...studio, crawl: { ...studio.crawl, ...(await r.json()).crawl } }; } catch {}
+  }
   let crawl = studio.crawl && studio.crawl.status === "read" && (studio.crawl.health?.status || "ok") === "ok" ? studio.crawl : null;
   let healthText = crawl ? (studio.crawl.site_source?.startsWith("Web search") ? `Listed link was bad, so the current site was found by search: ${crawl.site_url || crawl.domain}.` : `Site on file is live and mentions the studio (checked ${crawl.crawled_at?.slice(0, 10) || "at index time"}).`) : "";
   let healthStatus = crawl ? "done" : "weak";
@@ -473,8 +485,11 @@ export async function onRequestPost({ request, env }) {
   const published = (crawl?.emails || []).find(e => e.email === pe.email);
   let best = null;
   const inbox = pe.role || kind === "studio-handle";
-  if (crawl && !inbox) for (const p of pages) {
-    const toks = tokens(p.text); const pairs = namePairs(p.text, toks); const solid = pairs.filter(x => confirmed(p.text, x)); const ctx = pageContext(p.url, p.text);
+  const hk = pe.squashed, low = pages.map(p => p.text.toLowerCase());
+  const mayMention = i => hk.length < 4 ? low[i].includes(hk) : (low[i].includes(hk.slice(0, 4)) || low[i].includes(hk.slice(-4)));
+  if (crawl && !inbox) for (const [i, p] of pages.entries()) {
+    if (!mayMention(i)) continue;
+    const toks = tokens(p.text); const pairs = withCounts(namePairs(p.text, toks)); const solid = pairs.filter(x => confirmed(p.text, x)); const ctx = pageContext(p.url, p.text);
     for (const occ of pairs) {
       const em = emailMatchesPerson(pe, occ.first, occ.last, domainVerified); if (!em) continue;
       const role = roleFor(p.text, occ, solid, ctx); const c = { ...occ, ...em, role, page: p.url };
@@ -482,7 +497,7 @@ export async function onRequestPost({ request, env }) {
     }
   }
   if (crawl && !inbox && domainVerified && pe.parts.length === 1 && (!best || best.strength < 2)) for (const p of pages) {
-    const toks = tokens(p.text); const solid = namePairs(p.text, toks).filter(x => confirmed(p.text, x)); const ctx = pageContext(p.url, p.text);
+    const toks = tokens(p.text); const solid = withCounts(namePairs(p.text, toks)).filter(x => confirmed(p.text, x)); const ctx = pageContext(p.url, p.text);
     const fv = firstVariants(pe.squashed);
     for (const t of toks) {
       if (!/^[A-Z]/.test(t.w) || !fv.has(t.w.toLowerCase())) continue;
@@ -550,4 +565,7 @@ export async function onRequestPost({ request, env }) {
   ].map(([field, value, source, confidence]) => ({ field, value, source, confidence }));
   return json({ trace, verdict, record, tech: { angle, items: tech }, ms: Date.now() - t0 });
 }
-export async function onRequestGet() { return json({ usage: "POST JSON {email, studio?, town?}" }); }
+export async function onRequestGet({ request, env }) {
+  let n = null; try { const r = await env.ASSETS.fetch(new URL("/data/index.json", request.url)); n = r.ok ? (await r.json()).studios.length : `index.json missing (HTTP ${r.status})`; } catch (e) { n = "index.json unreadable"; }
+  return json({ ok: true, checker: "running", studios_indexed: n });
+}

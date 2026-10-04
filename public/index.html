@@ -67,6 +67,9 @@ main section[hidden]{display:none}
 label{display:block;font-size:.82rem;font-weight:600;margin-bottom:4px}
 .fields input{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:6px;background:var(--paper)}
 .run{border:0;background:var(--accent);color:var(--surface);padding:10px 18px;border-radius:6px;font-weight:600;cursor:pointer;white-space:nowrap}
+.btns{display:flex;gap:8px}
+.clear{border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:10px 14px;border-radius:6px;font-weight:600;cursor:pointer}
+.clear:hover{border-color:var(--ink)}
 .run:disabled{opacity:.6;cursor:progress}
 .examples{margin-top:18px;border-top:1px solid var(--soft);padding-top:14px}
 .examples h3{margin:0 0 8px;font-size:.95rem}
@@ -180,9 +183,9 @@ footer{margin-top:28px;color:var(--muted);font-size:.8rem}
         <p>Start with the email. A business domain or a studio-named handle is enough on its own. Personal addresses like first.last@gmail.com also need the studio name the lead typed.</p>
         <form class="fields" id="form">
           <div><label for="email">Email</label><input id="email" type="email" required placeholder="name@gmail.com" autocomplete="off"></div>
-          <div><label for="studio">Studio name <span class="opt">if personal address</span></label><input id="studio" placeholder="e.g. charm city bjj" autocomplete="off"></div>
+          <div><label for="studio">Studio name</label><input id="studio" placeholder="Needed for Gmail-type addresses" autocomplete="off"></div>
           <div><label for="town">Town (optional)</label><input id="town" placeholder="Baltimore" autocomplete="off"></div>
-          <button class="run" id="runBtn" type="submit">Run check</button>
+          <div class="btns"><button class="run" id="runBtn" type="submit">Run check</button><button class="clear" id="clearBtn" type="button">Clear</button></div>
         </form>
         <div class="examples">
           <h3>Try a real lead</h3>
@@ -195,18 +198,15 @@ footer{margin-top:28px;color:var(--muted);font-size:.8rem}
 
     <section id="tab-scale" hidden>
       <div class="panel prose">
-        <h2 class="scale-title">Scaling this nationwide</h2>
-        <p>The Baltimore version has three parts that change at national scale: where the studio list comes from, when the check runs, and how studio websites stay fresh.</p>
-        <h3>A national studio list</h3>
-        <p>OpenStreetMap already covers the whole country for free, but small studios are patchy in it. Foursquare's open places dataset fills most of the gap: over 100 million businesses, free for commercial use and refreshed monthly. Daxko's own Salesforce accounts and closed-lost deals add the studios sales already knows. Records are merged on website domain and phone number.</p>
-        <h3>Run on new leads, not on demand</h3>
-        <p>A HubSpot workflow fires when a contact arrives with a personal-mailbox domain or no associated company. It calls the checker and writes back the company association, contact status and tech stack. The same logic could live in a Clay table if the team would rather own it there. Cost grows with inbound volume, not with the number of studios in the country.</p>
-        <h3>Read studio sites ahead of time</h3>
-        <p>Every studio site is re-read on a monthly schedule and stored, so checking a lead becomes a fast lookup instead of a live crawl. Sites that go dead or get squatted fall into a recovery queue that searches for the studio's new site. At volume, a paid search API replaces the free search used here.</p>
-        <h3>The crawl doubles as a market map</h3>
-        <p>Recording every studio's booking software shows competitor share metro by metro: where Mindbody is entrenched, where studios still book through Wix or Square, and which ones already run a Daxko product. That's a targeting list for displacement and greenfield campaigns that doesn't depend on anyone filling out a form.</p>
-        <h3>People stay in the loop where it matters</h3>
-        <p>Only verified owners route automatically. Everything else goes to a review queue with the evidence attached, and each SDR confirmation becomes a labeled example for tuning the matching rules.</p>
+        <h2 class="scale-title">Can this run nationwide?</h2>
+        <p>Yes. Nothing in it is specific to Baltimore. OpenStreetMap covers the whole country, every studio's website is public, and the matching works the same everywhere.</p>
+        <h3>What would change</h3>
+        <ul>
+          <li><b>More complete studio list.</b> OpenStreetMap misses a lot of small studios. Foursquare's open places dataset (over 100 million businesses, free for commercial use) fills most of the gap.</li>
+          <li><b>Scheduled crawl instead of a laptop run.</b> The scrape becomes a monthly job that re-reads every studio's site and stores the results, so a lead check stays a fast lookup.</li>
+          <li><b>Automatic trigger.</b> Instead of pasting emails into a page, the check runs whenever a new HubSpot contact arrives without a company.</li>
+          <li><b>Paid search at volume.</b> The free search used to find a studio's new site after a dead link would need a paid search API at national scale.</li>
+        </ul>
       </div>
     </section>
   </main>
@@ -229,7 +229,7 @@ document.querySelectorAll("nav button").forEach(b => b.addEventListener("click",
 // index
 async function loadIndex() {
   try {
-    const r = await fetch("data/seed.json", { cache: "no-store" });
+    const r = await fetch("data/index.json", { cache: "no-store" });
     const d = await r.json();
     STUDIOS = d.studios || [];
     const read = STUDIOS.filter(s => s.crawl?.status === "read").length;
@@ -304,13 +304,22 @@ function stepHtml(s) {
   }).join("");
   return `<li class="${esc(s.status)}"><h3>${esc(s.title)}<span>${s.ms} ms</span></h3><p>${esc(s.detail)}</p>${ev ? `<ul class="ev">${ev}</ul>` : ""}</li>`;
 }
+$("#clearBtn").addEventListener("click", () => {
+  ["#email", "#studio", "#town"].forEach(id => $(id).value = "");
+  $("#results").innerHTML = ""; $("#err").textContent = ""; $("#err").className = "err";
+  $("#studio").classList.remove("needed"); current = null; renderList(); $("#email").focus();
+});
 $("#form").addEventListener("submit", async e => {
   e.preventDefault(); $("#err").textContent = ""; $("#err").className = "err"; $("#studio").classList.remove("needed"); const btn = $("#runBtn");
   btn.disabled = true; btn.textContent = "Checking…"; $("#results").innerHTML = "";
   try {
     const r = await fetch("api/resolve", { method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ email: $("#email").value, studio: $("#studio").value, town: $("#town").value }) });
-    const d = await r.json().catch(() => ({ error: "The checker didn't return a readable answer." }));
+    const raw = await r.text(); let d;
+    try { d = JSON.parse(raw); }
+    catch { d = { error: r.status === 404 || r.status === 405
+      ? `The checker isn't deployed (HTTP ${r.status}). The functions folder is probably missing from GitHub.`
+      : `The checker failed (HTTP ${r.status}): ${raw.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 160)}` }; }
     if (!r.ok || d.error) throw new Error(d.error || `The checker returned ${r.status}.`);
     if (d.need === "studio") { $("#err").className = "err ask"; $("#err").textContent = d.message; $("#studio").classList.add("needed"); $("#studio").focus(); return; }
     const res = $("#results"); res.innerHTML = "";

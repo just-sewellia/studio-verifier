@@ -30,7 +30,7 @@ import requests
 from bs4 import BeautifulSoup
 
 # ---------------------------------------------------------------- EDIT ME
-CONTACT_EMAIL = "you@example.com"   # put your real email here (sites see it)
+CONTACT_EMAIL = "erica.szalkowski@gmail.com"   # put your real email here (sites see it)
 # -----------------------------------------------------------------------
 
 USER_AGENT = f"BoutiqueLeadVerifier/1.0 (portfolio demo; contact: {CONTACT_EMAIL})"
